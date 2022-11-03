@@ -1,0 +1,165 @@
+########### payment/wallet container configuration ############
+
+version: "3.3"
+services:
+  monerod:
+    image: xmrto/monero
+    command:
+      # remove for production use
+      --testnet
+      --data-dir /monero
+      --non-interactive
+    volumes:
+      # the monerod config file
+      - ./monerod/config.conf:/monero
+    ports:
+      # testnet p2p
+      - "28080"
+      # testnet rpc
+      - "28081"
+    environment:
+      - USER_ID=1000
+      - P2P_BIND_IP=0.0.0.0
+      # mainnet = 18080/18081
+      # testnet = 28080/28081
+      - P2P_BIND_PORT=28080
+      - LOG_LEVEL=0
+      - RPC_USER="plutus"
+      - RPC_PASSWD="add8ncHdof90"
+      - RPC_BIND_IP=0.0.0.0
+      - RPC_BIND_PORT=28081
+      # enable tor use for rpc
+      - USE_TORSOCKS=NO
+      # enable tor use for the monero daemon
+      - USE_TOR=YES
+    restart: unless-stopped
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  ###############################################################
+
+  monero-wallet-rpc:
+    image: xmrto/monero
+    command: monero-wallet-rpc
+      --testnet
+      --wallet-file wallet
+      --password-file wallet.passwd
+    volumes:
+      # the monerod config file
+      - ./monerod/config.conf:/monero
+    ports:
+      # testnet p2p
+      - "28080"
+      # testnet rpc
+      - "28081"
+    environment:
+      - USER_ID=1000
+      - P2P_BIND_IP=0.0.0.0
+      # mainnet = 18080/18081
+      # testnet = 28080/28081
+      - P2P_BIND_PORT=28080
+      - LOG_LEVEL=0
+      - RPC_USER="plutus"
+      - RPC_PASSWD="add8ncHdof90"
+      - RPC_BIND_IP=0.0.0.0
+      - RPC_BIND_PORT=28081
+      # enable tor use for rpc
+      - USE_TORSOCKS=NO
+      # enable tor use for the monero daemon
+      - USE_TOR=YES
+    restart: unless-stopped
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  ###############################################################
+
+  bitcoind:
+    image: ruimarinho/bitcoin-core
+    command: -printtoconsole=1
+      -testnet=1
+      -rpcallowip=172.17.0.0/16
+      -rpcbind=0.0.0.0
+      -rpcauth=plu:7dbe632d2314af66428d4808844e6b63$a0a8f3759d50bb4de4a3d5b32392a0c86776bc5eb0c8cc12be016c1673d3cedd
+    ports:
+      - "18332"
+      - "18333"
+    volumes:
+      - bitcoind-data:/home/bitcoin/.bitcoin/
+    restart: unless-stopped
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  ###############################################################
+
+  plutus:
+    image: plutus
+    volumes:
+      - plutus-data:/plutus
+    ports:
+      - "127.0.0.1:443:8443"
+    environment:
+      - PG_URL:host=localhost port=5432 user=postgres dbname=plutus password=LtZVNKX51fv2jYTKI6YVfRl28qjiicvu sslmode=disable
+      - DEBUG:true
+      - BIND_PORT::8443
+      - BITCOIND_RPC_URL:http://plu:mjgZWmC-Cw_ESUnZn4L5Quik2kHW8dRUGkX90SQB9jw=@bitcoind:18332/
+      - BITCOIND_SERVICE_ADDR:bitcoind
+      - MONERO_WALLET_RPC_URL:http://monero_wallet_rpc:28083/json_rpc
+      - MONEROD_SERVICE_ADDR:monero_wallet_rpc
+    networks:
+      - backend
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  ###############################################################
+
+  postgres:
+    image: postgres
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=add8ncHdof90
+      - POSTGRES_USER=plutus
+      - POSTGRES_DB=plutus
+    restart: always
+    networks:
+      - backend
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 10m
+        max-file: "3"
+
+###############################################################
+
+volumes:
+  bitcoind-data:
+  monerod-data:
+  plutus-data:
+  database-data:
+
+###############################################################
+
+networks:
+  # frontend:
+  backend:

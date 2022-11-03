@@ -1,0 +1,9 @@
+.env
+.vscode/
+cert.pem
+key.pem
+pg.log
+btcwallet-sample.conf
+btcd-samle.conf
+docker-compose.yml
+.DS_STORE
